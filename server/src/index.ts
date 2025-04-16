@@ -1,27 +1,34 @@
 import express, { Request, Response } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import { getAllCatPosts, savePost } from "./services/post-service.js";
+import multer from "multer";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
-const cats: { title: string; description: string; image: string }[] = [
-  {
-    title: "Sleepy Cat",
-    description: "This cat loves naps. And who doesn't?",
-    image:
-      "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?q=80&w=1443&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+const storage = multer.memoryStorage();
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
   },
-  {
-    title: "Playful Cat",
-    description: "Zoomies at 3 AM guaranteed.",
-    image:
-      "https://images.unsplash.com/photo-1478098711619-5ab0b478d6e6?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+});
+
+dotenv.config();
+
+export type Cat = {
+  title: string;
+  description: string;
+  image: string;
+};
+
+const client = new S3Client({
+  region: "us-east-1",
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
-  {
-    title: "Curious Cat",
-    description: "Exploring every corner of the house.",
-    image:
-      "https://images.unsplash.com/photo-1472491235688-bdc81a63246e?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-  },
-];
+});
 
 const app = express();
 
@@ -42,8 +49,57 @@ app.use(
 );
 
 app.get("/cats", async (req: Request, res: Response): Promise<void> => {
-  res.status(200).json(cats);
+  try {
+    const cats = await getAllCatPosts();
+    res.status(200).json(cats);
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+    console.log(error);
+  }
 });
+
+app.post(
+  "/post-cat",
+  upload.single("image"),
+  async (req: Request, res: Response): Promise<any> => {
+    try {
+      const image = req.file as Express.Multer.File;
+
+      const { title, description } = req.body;
+
+      if (!image) {
+        return res.status(400).json({ message: "Please upload an image" });
+      }
+
+      const input = {
+        Body: image.buffer,
+        Bucket: "test-bucket-hamidisagoodboy",
+        Key: image.originalname,
+        ContentType: image.mimetype,
+      };
+      const command = new PutObjectCommand(input);
+      const response = await client.send(command);
+
+      if (response.$metadata.httpStatusCode === 200) {
+        const url = `https://test-bucket-hamidisagoodboy.s3.us-east-1.amazonaws.com/${image.originalname}`;
+
+        const cat: Cat = {
+          title,
+          description,
+          image: url,
+        };
+
+        const savedCat = await savePost(cat);
+        res.status(201).json(savedCat);
+      } else {
+        res.status(400).json({ message: "Upload failed" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+      console.log(error);
+    }
+  }
+);
 
 app.listen(8010, "0.0.0.0", () => {
   console.log("SERVER UP!!");

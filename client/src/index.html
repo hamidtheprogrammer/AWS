@@ -12,7 +12,25 @@
       <h1>Welcome to Cat World</h1>
       <p>The internet's favorite animal, now in your S3 bucket!</p>
     </header>
-    <section class="gallery"></section>
+    <section>
+      <button id="post" class="post">POST</button>
+      <section class="gallery">
+        <form action="" method="post">
+          <h3>Enter Cat details</h3>
+
+          <input id="title" type="text" placeholder="Title" />
+
+          <textarea id="desc" placeholder="description" name=""></textarea>
+          <input id="image" type="file" accept="image/**" />
+          <div id="button-wrapper">
+            <button type="submit" id="submit" class="post submit">SUBMIT</button
+            ><button type="button" id="cancel" class="post cancel">
+              CANCEL
+            </button>
+          </div>
+        </form>
+      </section>
+    </section>
     <footer>
       <p>© 2025 Cat World. Meow!</p>
     </footer>

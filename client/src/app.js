@@ -16,6 +16,47 @@ async function getCats() {
 let isLoading = false;
 
 const section = document.querySelector(`.gallery`);
+const post = document.querySelector(`#post`);
+const form = document.querySelector(`form`);
+const image = document.querySelector(`#image`);
+const cancelButton = document.querySelector(`#cancel`);
+const title = document.querySelector(`#title`);
+const desc = document.querySelector(`#desc`);
+
+post.addEventListener("click", () => {
+  form.style.display = `flex`;
+});
+
+cancelButton.addEventListener("click", () => {
+  form.style.display = `none`;
+});
+
+form.addEventListener("submit", (e) => {
+  submit(e);
+});
+
+async function submit(e) {
+  e.preventDefault();
+
+  const formData = new FormData();
+  formData.append("title", title.value);
+  formData.append("description", desc.value);
+  formData.append("image", image.files[0]);
+
+  const response = await fetch("http://localhost:8010/post-cat", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    return alert("POST FAILED");
+  }
+
+  form.style.display = `none`;
+  alert("Post successful");
+
+  getCats();
+}
 
 async function run() {
   isLoading = true;
